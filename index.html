@@ -417,8 +417,11 @@
       点下面的「<b>打开设置</b>」会跳到本应用的设置页：<br>
       找到「<b>权限</b>」→「<b>麦克风</b>」→ 选「<b>允许</b>」，然后返回即可。
     </p>
+    <div id="micDiag" style="background:#0e1015;border:1px solid var(--line);border-radius:10px;
+      padding:10px;font-size:12px;color:var(--dim);line-height:1.9;white-space:pre-wrap;
+      -webkit-user-select:text;user-select:text;margin-bottom:12px"></div>
     <div class="act">
-      <button id="btnMicLater">以后再说</button>
+      <button id="btnMicLater">关闭</button>
       <button class="p" id="btnMicSettings">打开设置</button>
     </div>
   </div>
@@ -794,10 +797,25 @@
     });
   }
 
+  // 把真实原因摆到屏幕上 —— 之前不管什么原因都报"没权限"，把人带偏了。
+  function micDiag(reason, err){
+    var lines = [];
+    lines.push("桥（AndroidMic）：" + (window.AndroidMic ? "有" : "无"));
+    if (window.AndroidMic && window.AndroidMic.hasMic){
+      var h = "?";
+      try { h = window.AndroidMic.hasMic() ? "已给" : "未给"; } catch (e){ h = "调用出错"; }
+      lines.push("系统麦克风权限：" + h);
+    }
+    lines.push("页面来源：" + location.origin);
+    lines.push("原因：" + (err ? (err.name + (err.message ? " · " + err.message : "")) : reason));
+    try { el("micDiag").textContent = lines.join("\n"); } catch (e){}
+  }
+
   function onMicBlocked(){
-    setStatus("麦克风权限被拒绝了", "err");
+    setStatus("麦克风权限没给", "err");
     if (window.AndroidMic && window.AndroidMic.openAppSettings){
       setHint("按下面提示去设置里打开麦克风权限");
+      micDiag("系统权限未授予");
       el("micSheet").classList.remove("hide");
     } else {
       setHint("点地址栏左边的锁图标 → 把「麦克风」改成「允许」→ 刷新页面");
@@ -831,9 +849,11 @@
       setHint("说完再松手");
     }).catch(function(err){
       setStatus("麦克风打不开", "err");
-      setHint(String(err && err.name) + " —— " +
-        (window.AndroidMic ? "去手机设置里检查本应用的麦克风权限" : "检查浏览器麦克风权限"));
-      if (window.AndroidMic) el("micSheet").classList.remove("hide");
+      setHint(String(err && err.name) + " —— 看下面的诊断信息");
+      if (window.AndroidMic){
+        micDiag("getUserMedia 被拒", err);
+        el("micSheet").classList.remove("hide");
+      }
     });
   }
 
