@@ -271,8 +271,11 @@
                     ar:"ar-SA", th:"th-TH" };
   var CARD_LANGS = [["en","英语"],["fr","法语"],["ja","日语"],["ko","韩语"],["es","西语"],["ru","俄语"]];
 
-  var CARD_COUNT = 10;
+  // 槽位上限。界面上**只显示填了内容的**，末尾给一个「＋ 加一条」；
+  // 30 个空按钮铺出来手机上得滑半天，没必要。
+  var CARD_COUNT = 30;
 
+  // 下面这 10 条只是「起个头的草稿」，用户点「恢复默认」会回到这一份。
   var DEFAULT_CARDS = [
     "您好，欢迎光临大疆！有什么可以帮您的吗？",
     "这款我给您演示一下，您可以上手试试。",
@@ -339,15 +342,23 @@
 
   /* ---------- 常用话术卡 ---------- */
 
+  // 一律凑满 CARD_COUNT 个槽位再交给界面 —— 界面只管「哪几个有内容」。
+  // 这样以前存过的 6 条 / 10 条也不会丢，会自动补到 30。
+  function padCards(arr){
+    var out = (arr || []).slice(0, CARD_COUNT);
+    while (out.length < CARD_COUNT) out.push("");
+    return out;
+  }
+
   function loadCards(){
     try {
       var raw = localStorage.getItem(CARDS_KEY);
       if (raw){
         var arr = JSON.parse(raw);
-        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length === CARD_COUNT) return arr;
+        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length) return padCards(arr);
       }
     } catch (e){}
-    return DEFAULT_CARDS.slice();
+    return padCards(DEFAULT_CARDS);
   }
 
   function saveCards(){
@@ -393,15 +404,41 @@
     var g = el("grid");
     g.innerHTML = "";
     var lang = cardLang || customerLang || "en";
+    var shown = 0;
     cards.forEach(function(text, i){
+      var t = (text || "").trim();
+      if (!t) return;                    // 空槽位不铺到屏幕上
+      shown++;
       var b = document.createElement("button");
       // 已经存进手机的话术打个勾 —— 按它就不会再联网翻译
-      var cached = !!(text && cache[cacheKey(text.trim(), lang)]);
-      b.textContent = (cached ? "✓ " : "") + (text || ("（第 " + (i + 1) + " 条为空）"));
+      var cached = !!(cache[cacheKey(t, lang)]);
+      b.textContent = (cached ? "✓ " : "") + t;
       if (cached) b.style.borderColor = "#2ecc71";
       b.onclick = function(){ pressCard(i); };
       g.appendChild(b);
     });
+    var add = document.createElement("button");
+    add.textContent = shown ? (shown + "/" + CARD_COUNT + "　＋ 加一条") : "＋ 添加第一条话术";
+    add.style.cssText = "border-style:dashed;color:var(--dim)";
+    add.onclick = openEditorAtFirstEmpty;
+    g.appendChild(add);
+  }
+
+  // 从「＋ 加一条」进来：直接落到第一个空槽，省得自己找
+  function openEditorAtFirstEmpty(){
+    renderFields();
+    renderChips();
+    el("editbox").classList.remove("hide");
+    el("panelCards").classList.add("hide");
+    el("btnEdit").textContent = "收起";
+    var tas = el("fields").querySelectorAll("textarea");
+    for (var i = 0; i < tas.length; i++){
+      if (!tas[i].value.trim()){
+        try { tas[i].scrollIntoView({ block: "center" }); } catch (e){}
+        try { tas[i].focus(); } catch (e){}
+        break;
+      }
+    }
   }
 
   // 一次性把这 10 条话术都翻好存进手机。之后在门店按卡片就不再联网翻译了 ——
@@ -496,8 +533,9 @@
   el("btnSaveCards").onclick = function(){
     var tas = el("fields").querySelectorAll("textarea");
     for (var i = 0; i < tas.length && i < CARD_COUNT; i++){
-      cards[i] = tas[i].value.trim() || DEFAULT_CARDS[i];
+      cards[i] = tas[i].value.trim();     // 允许留空 —— 空槽位不会显示出来
     }
+    cards = padCards(cards);
     saveCards();
     renderGrid();
     el("editbox").classList.add("hide");
@@ -507,10 +545,11 @@
   };
 
   el("btnReset").onclick = function(){
-    cards = DEFAULT_CARDS.slice();
+    cards = padCards(DEFAULT_CARDS);
     saveCards();
     renderFields();
-    setStatus("已恢复默认话术", "on");
+    renderGrid();
+    setStatus("已恢复成我起的 10 条默认草稿", "on");
   };
 
   /* ---------- audio ---------- */
