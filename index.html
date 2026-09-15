@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>门店翻译</title>
+<style>
+  :root{
+    --bg:#111318; --card:#1c2029; --line:#2b313d; --fg:#eef1f6;
+    --dim:#98a2b3; --accent:#2f6df6; --ok:#2ecc71; --warn:#f5a524; --bad:#f0506e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--fg);
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    padding:env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 12px);
+    -webkit-user-select:none; user-select:none;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding-top:10px}
+  .bar{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px;margin-bottom:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
+  .dot.on{background:var(--ok)} .dot.err{background:var(--bad)} .dot.busy{background:var(--warn)}
+  .bar b{color:var(--fg);font-weight:600}
+  .bar .sp{flex:1}
+  .bar button{
+    background:transparent;border:1px solid var(--line);color:var(--dim);
+    border-radius:8px;padding:4px 10px;font-size:13px;
+  }
+  .big{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:20px 18px;margin-bottom:12px;min-height:150px;
+    display:flex;flex-direction:column;justify-content:center;
+  }
+  .big .src{font-size:17px;color:var(--dim);margin-bottom:12px;word-break:break-word}
+  .big .out{font-size:32px;line-height:1.3;font-weight:600;word-break:break-word}
+  .big .out.zh{font-size:28px}
+  .hint{font-size:14px;color:var(--dim);text-align:center;padding:12px 0}
+  .ptt{
+    width:100%;border:none;border-radius:20px;color:#fff;
+    background:var(--accent);font-size:24px;font-weight:700;
+    padding:34px 0;margin-top:4px;touch-action:none;
+    transition:transform .06s, background .15s;
+  }
+  .ptt:active{transform:scale(.985)}
+  .ptt.rec{background:var(--bad)}
+  .ptt.busy{background:#3a4152;color:#aab3c2}
+  .ptt[disabled]{opacity:.6}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .row input[type=text]{
+    flex:1;background:var(--card);border:1px solid var(--line);color:var(--fg);
+    border-radius:12px;padding:12px;font-size:16px;-webkit-user-select:text;user-select:text;
+  }
+  .row button{
+    background:var(--card);border:1px solid var(--line);color:var(--fg);
+    border-radius:12px;padding:0 16px;font-size:15px;
+  }
+  .log{margin-top:14px}
+  .log .it{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;margin-bottom:8px;
+  }
+  .log .it .l1{font-size:14px;color:var(--dim);word-break:break-word}
+  .log .it .l2{font-size:19px;margin-top:3px;word-break:break-word}
+  .log .it .tag{font-size:11px;color:var(--dim);border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px;margin-right:6px}
+
+  .cards{margin-top:16px}
+  .cards .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .cards .hd b{font-size:14px;color:var(--dim);font-weight:600}
+  .cards .hd .sp{flex:1}
+  .cards .hd button{background:transparent;border:1px solid var(--line);color:var(--dim);
+    border-radius:8px;padding:4px 12px;font-size:13px}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px}
+  .chips button{flex:none;background:var(--card);border:1px solid var(--line);color:var(--dim);
+    border-radius:999px;padding:7px 14px;font-size:13px;white-space:nowrap}
+  .chips button.sel{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid button{background:var(--card);border:1px solid var(--line);color:var(--fg);
+    border-radius:12px;padding:13px 11px;font-size:14px;line-height:1.45;text-align:left;
+    min-height:66px;word-break:break-word;font-family:inherit}
+  .grid button:active{background:#252a35}
+  .grid button:disabled{opacity:.45}
+  .editbox{display:flex;flex-direction:column;gap:8px}
+  .editbox .fld{display:flex;flex-direction:column;gap:4px}
+  .editbox .fld span{font-size:12px;color:var(--dim)}
+  .editbox textarea{width:100%;background:#0e1015;border:1px solid var(--line);color:var(--fg);
+    border-radius:10px;padding:10px;font-size:14px;resize:vertical;min-height:56px;
+    -webkit-user-select:text;user-select:text;font-family:inherit;line-height:1.5}
+  .editbox .act{display:flex;gap:8px;margin-top:4px}
+  .editbox .act button{flex:1;border-radius:12px;padding:13px;font-size:15px;
+    border:1px solid var(--line);background:transparent;color:var(--fg);font-family:inherit}
+  .editbox .act button.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+  .toast{
+    position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);
+    max-width:616px;margin:0 auto;z-index:50;
+    background:var(--accent);color:#fff;border-radius:12px;
+    padding:15px 16px;font-size:17px;font-weight:600;line-height:1.45;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);
+    opacity:0;transform:translateY(-14px);
+    transition:opacity .2s, transform .2s;pointer-events:none;word-break:break-word;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+
+  .foot{color:var(--dim);font-size:12px;text-align:center;padding:16px 0 4px;line-height:1.7}
+  .sheet{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;
+    align-items:flex-end;justify-content:center;padding:16px;
+  }
+  .sheet .in{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px;width:100%;max-width:640px;margin-bottom:env(safe-area-inset-bottom)}
+  .sheet h3{margin:0 0 10px;font-size:16px}
+  .sheet p{color:var(--dim);font-size:13px;margin:0 0 12px}
+  .sheet input{width:100%;background:#0e1015;border:1px solid var(--line);color:var(--fg);
+    border-radius:10px;padding:12px;font-size:15px;-webkit-user-select:text;user-select:text}
+  .sheet .act{display:flex;gap:8px;margin-top:12px}
+  .sheet .act button{flex:1;border-radius:12px;padding:13px;font-size:16px;border:1px solid var(--line);
+    background:transparent;color:var(--fg)}
+  .sheet .act button.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="wrap">
+
+  <div class="bar">
+    <span class="dot" id="dot"></span>
+    <b id="stat">准备就绪</b>
+    <span class="sp"></span>
+    <span id="langtag" style="color:var(--dim)"></span>
+    <button id="btnGloss">词库</button>
+    <button id="btnVoice">语音</button>
+    <button id="btnKey">密钥</button>
+  </div>
+
+  <div class="big">
+    <div class="src" id="src">按住下面的按钮说话</div>
+    <div class="out" id="out">—</div>
+  </div>
+
+  <button class="ptt" id="ptt">按住说话</button>
+
+  <div class="cards">
+    <div class="hd">
+      <b>常用话术</b>
+      <span class="sp"></span>
+      <button id="btnEdit">编辑话术</button>
+    </div>
+
+    <div class="hide" id="panelCards">
+      <div class="chips" id="chips"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="editbox hide" id="editbox">
+      <div class="fld"><span>选择要说的语言</span></div>
+      <div class="chips" id="chips2"></div>
+      <div id="fields"></div>
+      <div class="act">
+        <button id="btnReset">恢复默认</button>
+        <button class="p" id="btnSaveCards">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <input type="text" id="typed" placeholder="任何语言都能打：中文 / English / 한국어 / 日本語 …" autocomplete="off">
+    <button id="btnTyped">翻译</button>
+  </div>
+  <div class="hint" style="padding:8px 4px 0;line-height:1.6">
+    <b>说不出话、或说不了中文外语的客户</b>？把手机递给他，让他在这一栏用<b>他自己的语言</b>打字
+    （韩语、日语、俄语都行），点「翻译」就出中文。反过来你打中文，也会翻成他的语言。
+  </div>
+
+  <div class="hint" id="hint">松手后 2~4 秒出译文</div>
+
+  <div class="log" id="log"></div>
+
+  <div class="foot">
+    录音会上传到火山引擎做识别与翻译，会消耗你的 API 额度。<br>
+    客户说完 → 屏幕大字给他看；你说完 → 手机念出来。
+  </div>
+</div>
+
+<div class="sheet hide" id="sheet">
+  <div class="in">
+    <h3>填入火山方舟 API Key</h3>
+    <p>只存在这台手机的浏览器里，不会写进网页。换手机要重新填一次。</p>
+    <input type="password" id="keyInput" placeholder="ark-..." autocomplete="off">
+    <div class="act">
+      <button id="btnCancel">取消</button>
+      <button class="p" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet hide" id="voiceSheet">
+  <div class="in">
+    <h3>语音自检</h3>
+    <p>发音默认走<b>手机</b>自带的语音引擎。「试听」用的就是当前选中的那一个。
+      手机缺某个语种的语音包时，可以切到<b>电脑</b>（微软语音，七个语种全含日俄，手机零安装）。</p>
+    <div id="voiceList" style="font-size:15px;line-height:2"></div>
+    <div id="voiceSteps" style="margin-top:14px;font-size:13px;color:var(--dim);line-height:1.9"></div>
+    <div class="act">
+      <button id="btnOpenTts">打开语音设置</button>
+      <button id="btnOpenSettings">打开系统设置</button>
+    </div>
+    <div class="act">
+      <button id="btnCopySteps">复制设置路径</button>
+      <button class="p" id="btnVoiceOk">知道了</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet hide" id="glossSheet">
+  <div class="in">
+    <h3>大疆术语库</h3>
+    <p>左边是你说的中文，右边是大疆的官方说法。翻译时会<b>强制用这里的说法</b>，不按字面直译。
+      这些词是我起的草稿，<b>请按门店实际口径改</b>，改完自动存在你手机上，不依赖任何人的电脑。</p>
+    <div id="glossList" style="max-height:42vh;overflow-y:auto;margin-bottom:12px"></div>
+    <div class="act" style="margin-bottom:8px">
+      <button id="btnGlossAdd">加一行</button>
+      <button id="btnGlossExport">导出文件</button>
+    </div>
+    <div class="act" style="margin-bottom:8px">
+      <button id="btnGlossImport">导入文件</button>
+      <button id="btnGlossReset">恢复默认</button>
+    </div>
+    <div class="act">
+      <button class="p" id="btnGlossSave">保存并关闭</button>
+    </div>
+    <input type="file" id="glossFile" accept=".json,application/json" style="display:none">
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var API = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
+  var MODEL = "doubao-seed-2-0-mini-260428";
+  var KEY_STORE = "dji_voice_key";
+  var CARDS_KEY = "dji_voice_cards";
+  var CARDLANG_KEY = "dji_voice_cardlang";
+  var CUSTLANG_KEY = "dji_voice_custlang";
+  var TTS_KEY = "dji_voice_tts";
+
+  var LANG_NAMES = { zh:"Chinese", en:"English", ja:"Japanese", ko:"Korean",
+                     es:"Spanish", ru:"Russian", fr:"French", de:"German",
+                     it:"Italian", pt:"Portuguese", ar:"Arabic", th:"Thai" };
+  var SPEAK_TAG = { zh:"zh-CN", en:"en-US", ja:"ja-JP", ko:"ko-KR", es:"es-ES",
+                    ru:"ru-RU", fr:"fr-FR", de:"de-DE", it:"it-IT", pt:"pt-PT",
+                    ar:"ar-SA", th:"th-TH" };
+  var CARD_LANGS = [["en","英语"],["fr","法语"],["ja","日语"],["ko","韩语"],["es","西语"],["ru","俄语"]];
+
+  var DEFAULT_CARDS = [
+    "您好，欢迎光临大疆！有什么可以帮您的吗？",
+    "这款我给您演示一下，您可以上手试试。",
+    "它很轻，操作简单，新手也容易上手。",
+    "关于价格和套装内容，我给您详细说明一下。",
+    "这款现在有现货，可以马上带走。",
+    "您有任何问题都可以问我，我来帮您解答。"
+  ];
+
+  var el = function(id){ return document.getElementById(id); };
+  var dot = el("dot"), stat = el("stat"), srcEl = el("src"), outEl = el("out");
+  var langtag = el("langtag"), logEl = el("log"), hintEl = el("hint");
+  var ptt = el("ptt"), sheet = el("sheet"), keyInput = el("keyInput");
+  var toastEl = el("toast"), toastTimer = null;
+
+  // 给店员看的提示条：检测到客户说什么语言时弹一下，免得错过了还得翻记录。
+  function showToast(msg, ms){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, ms || 4000);
+  }
+
+  var apiKey = localStorage.getItem(KEY_STORE) || "";
+
+  // 客户说什么语言。这个值决定了「你说的中文要翻成什么语言」。
+  // 如果留空，模型不知道该翻成什么，就会把中文原样吐回来 —— 表现就是「中文进、中文出」。
+  // 所以默认给英语，而且存进手机，刷新页面不会丢；客户一开口会被自动纠正。
+  var customerLang = localStorage.getItem(CUSTLANG_KEY) || "en";
+  var cardLang = localStorage.getItem(CARDLANG_KEY) || "";
+  // 发音来源：默认手机自带引擎（用户实测荣耀换 Google 引擎后已可用），
+  // 需要时可在「语音自检」里切到电脑（微软语音，语种更全）。
+  var ttsMode = localStorage.getItem(TTS_KEY) || "phone";
+  var cards = loadCards();
+  var recorder = null, chunks = [], stream = null;
+  var recording = false, busy = false;
+
+  function setStatus(text, cls){
+    stat.textContent = text;
+    dot.className = "dot" + (cls ? " " + cls : "");
+  }
+  function setHint(t){ hintEl.textContent = t; }
+
+  /* ---------- api key sheet ---------- */
+
+  function showKeySheet(){
+    keyInput.value = apiKey;
+    sheet.classList.remove("hide");
+    keyInput.focus();
+  }
+  el("btnKey").onclick = showKeySheet;
+  el("btnCancel").onclick = function(){ sheet.classList.add("hide"); };
+  el("btnSave").onclick = function(){
+    apiKey = keyInput.value.trim();
+    localStorage.setItem(KEY_STORE, apiKey);
+    sheet.classList.add("hide");
+    setStatus(apiKey ? "密钥已保存" : "还没填密钥", apiKey ? "" : "err");
+  };
+  if (!apiKey) setTimeout(showKeySheet, 400);
+
+  /* ---------- 常用话术卡 ---------- */
+
+  function loadCards(){
+    try {
+      var raw = localStorage.getItem(CARDS_KEY);
+      if (raw){
+        var arr = JSON.parse(raw);
+        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length === 6) return arr;
+      }
+    } catch (e){}
+    return DEFAULT_CARDS.slice();
+  }
+
+  function saveCards(){
+    try { localStorage.setItem(CARDS_KEY, JSON.stringify(cards)); } catch (e){}
+  }
+
+  // 界面显示的和内部用的必须是同一个值 —— 之前这里分开存，导致
+  // 顶部写着「客户：英语」，但请求里其实没带语言，中文就被原样吐回来了。
+  function setCustomerLang(code){
+    if (!code) return;
+    customerLang = code;
+    try { localStorage.setItem(CUSTLANG_KEY, code); } catch (e){}
+    langtag.textContent = "客户：" + (LANG_NAMES[code] || code);
+    if (!cardLang){
+      cardLang = code;
+      try { localStorage.setItem(CARDLANG_KEY, code); } catch (e){}
+      renderChips();
+    }
+  }
+
+  function setCardLang(code){
+    cardLang = code;
+    try { localStorage.setItem(CARDLANG_KEY, code); } catch (e){}
+    setCustomerLang(code);             // 要说给客户听的语言，就是这个客户的语言
+    renderChips();
+  }
+
+  function renderChips(){
+    [el("chips"), el("chips2")].forEach(function(box){
+      if (!box) return;
+      box.innerHTML = "";
+      CARD_LANGS.forEach(function(pair){
+        var b = document.createElement("button");
+        b.textContent = pair[1];
+        if (cardLang === pair[0]) b.className = "sel";
+        b.onclick = function(){ setCardLang(pair[0]); };
+        box.appendChild(b);
+      });
+    });
+  }
+
+  function renderGrid(){
+    var g = el("grid");
+    g.innerHTML = "";
+    cards.forEach(function(text, i){
+      var b = document.createElement("button");
+      b.textContent = text || ("（第 " + (i + 1) + " 条为空）");
+      b.onclick = function(){ pressCard(i); };
+      g.appendChild(b);
+    });
+  }
+
+  function pressCard(i){
+    // 每一步都给出屏幕反馈 —— 之前按了没动静时，屏幕上什么线索都没有，没法排查。
+    if (busy){ setStatus("上一条还没弄完，稍等", "busy"); return; }
+    var zh = (cards[i] || "").trim();
+    if (!zh){ setStatus("第 " + (i + 1) + " 条是空的，先点「编辑话术」写内容", "err"); return; }
+    var lang = cardLang || customerLang || "en";
+    setStatus("话术 → " + (LANG_NAMES[lang] || lang) + "…", "busy");
+    setHint("正在把第 " + (i + 1) + " 条翻成" + (LANG_NAMES[lang] || lang));
+    process(translateText(zh, lang).then(function(json){
+      return { json: json, kind: "card" };
+    }));
+  }
+
+  function renderFields(){
+    var box = el("fields");
+    box.innerHTML = "";
+    cards.forEach(function(text, i){
+      var wrap = document.createElement("div");
+      wrap.className = "fld";
+      var lab = document.createElement("span");
+      lab.textContent = "第 " + (i + 1) + " 条";
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.rows = 2;
+      wrap.appendChild(lab);
+      wrap.appendChild(ta);
+      box.appendChild(wrap);
+    });
+  }
+
+  el("btnEdit").onclick = function(){
+    var editing = !el("editbox").classList.contains("hide");
+    if (editing){
+      el("editbox").classList.add("hide");
+      el("panelCards").classList.remove("hide");
+      el("btnEdit").textContent = "编辑话术";
+    } else {
+      renderFields();
+      renderChips();
+      el("editbox").classList.remove("hide");
+      el("panelCards").classList.add("hide");
+      el("btnEdit").textContent = "收起";
+    }
+  };
+
+  el("btnSaveCards").onclick = function(){
+    var tas = el("fields").querySelectorAll("textarea");
+    for (var i = 0; i < tas.length && i < 6; i++){
+      cards[i] = tas[i].value.trim() || DEFAULT_CARDS[i];
+    }
+    saveCards();
+    renderGrid();
+    el("editbox").classList.add("hide");
+    el("panelCards").classList.remove("hide");
+    el("btnEdit").textContent = "编辑话术";
+    setStatus("话术已保存", "on");
+  };
+
+  el("btnReset").onclick = function(){
+    cards = DEFAULT_CARDS.slice();
+    saveCards();
+    renderFields();
+    setStatus("已恢复默认话术", "on");
+  };
+
+  /* ---------- audio ---------- */
+
+  function pickMime(){
+    var list = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", ""];
+    for (var i = 0; i < list.length; i++){
+      if (!list[i]) return "";
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(list[i])) return list[i];
+    }
+    return "";
+  }
+
+  function startRec(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      setStatus("这个浏览器不支持麦克风", "err"); return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    }).then(function(s){
+      stream = s;
+      chunks = [];
+      var mime = pickMime();
+      try {
+        recorder = mime ? new MediaRecorder(s, { mimeType: mime }) : new MediaRecorder(s);
+      } catch (e){
+        recorder = new MediaRecorder(s);
+      }
+      recorder.ondataavailable = function(ev){ if (ev.data && ev.data.size) chunks.push(ev.data); };
+      recorder.onstop = function(){
+        var blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+        if (blob.size < 1200){ setStatus("没录到声音，再试一次", "err"); setHint("按住别松手，说完再松"); return; }
+        handleBlob(blob);
+      };
+      recorder.start();
+      recording = true;
+      ptt.classList.add("rec");
+      ptt.textContent = "松手翻译";
+      setStatus("正在听…", "busy");
+      setHint("说完再松手");
+    }).catch(function(err){
+      setStatus("麦克风打不开", "err");
+      setHint(String(err && err.name) + " —— 检查浏览器麦克风权限");
+    });
+  }
+
+  function stopRec(){
+    if (!recording) return;
+    recording = false;
+    ptt.classList.remove("rec");
+    ptt.textContent = "按住说话";
+    try { recorder.stop(); } catch (e){}
+    setStatus("处理中…", "busy");
+  }
+
+  /* decode -> 16k mono -> wav -> base64 */
+  function toWavBase64(blob){
+    return blob.arrayBuffer().then(function(buf){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var ctx;
+      try { ctx = new AC({ sampleRate: 16000 }); }
+      catch (e){ ctx = new AC(); }
+      return new Promise(function(res, rej){
+        var settled = false;
+        var ok = function(d){ if (!settled){ settled = true; res({ ctx: ctx, decoded: d }); } };
+        var p = ctx.decodeAudioData(buf, ok, function(e){ if (!settled){ settled = true; rej(e); } });
+        if (p && p.then) p.then(ok, function(e){ if (!settled){ settled = true; rej(e); } });
+      });
+    }).then(function(r){
+      var ch = r.decoded.getChannelData(0);
+      var rate = r.decoded.sampleRate;
+      var pcm = new Int16Array(ch.length);
+      for (var i = 0; i < ch.length; i++){
+        var v = Math.max(-1, Math.min(1, ch[i]));
+        pcm[i] = v < 0 ? v * 0x8000 : v * 0x7FFF;
+      }
+      var head = new ArrayBuffer(44), view = new DataView(head);
+      var w = function(off, s){ for (var i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+      w(0, "RIFF"); view.setUint32(4, 36 + pcm.byteLength, true); w(8, "WAVE");
+      w(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true); view.setUint32(24, rate, true);
+      view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true); w(36, "data"); view.setUint32(40, pcm.byteLength, true);
+      var bytes = new Uint8Array(44 + pcm.byteLength);
+      bytes.set(new Uint8Array(head), 0);
+      bytes.set(new Uint8Array(pcm.buffer), 44);
+      var bin = "";
+      for (var j = 0; j < bytes.length; j += 0x8000){
+        bin += String.fromCharCode.apply(null, bytes.subarray(j, j + 0x8000));
+      }
+      try { r.ctx.close(); } catch (e){}
+      return btoa(bin);
+    });
+  }
+
+  /* ---------- 大疆术语库（内置 + 用户自己更新） ---------- */
+  // 每个词条 = [中文, 大疆的官方说法]。
+  // 下面这份是我起的草稿，请用户按门店口径改；改完存在他自己的手机里，
+  // 不依赖任何人的电脑。可以导出成 json 文件发给同事。
+  var GLOSSARY_KEY = "dji_voice_glossary";
+
+  var DEFAULT_GLOSSARY = [
+    ["云台", "gimbal"],
+    ["三轴增稳", "3-axis stabilization"],
+    ["返航点", "Home Point"],
+    ["返航", "Return-to-Home (RTH)"],
+    ["避障", "obstacle sensing"],
+    ["全向避障", "omnidirectional obstacle sensing"],
+    ["一键短片", "QuickShots"],
+    ["大师镜头", "MasterShots"],
+    ["智能跟随", "ActiveTrack"],
+    ["焦点跟随", "FocusTrack"],
+    ["延时摄影", "Hyperlapse"],
+    ["全景拍摄", "Panorama"],
+    ["随心换", "DJI Care Refresh"],
+    ["畅飞套装", "Fly More Combo"],
+    ["套装", "combo"],
+    ["试飞区报备", "flight zone filing"],
+    ["禁飞区", "no-fly zone"],
+    ["限高区", "altitude-limited zone"],
+    ["图传", "video transmission"],
+    ["续航", "flight time"],
+    ["抗风", "wind resistance"],
+    ["光圈", "aperture"],
+    ["快门", "shutter"],
+    ["感光度", "ISO"],
+    ["传感器", "sensor"],
+    ["防抖", "stabilization"],
+    ["折叠", "foldable"],
+    ["现货", "in stock"],
+    ["保修", "warranty"],
+    ["试飞", "test flight"]
+  ];
+
+  var glossary = loadGlossary();
+
+  function loadGlossary(){
+    try {
+      var raw = localStorage.getItem(GLOSSARY_KEY);
+      if (raw){
+        var arr = JSON.parse(raw);
+        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length){
+          return arr.filter(function(g){ return g && typeof g[0] === "string" && g[0].trim(); })
+                    .map(function(g){ return [g[0], g[1] || ""]; });
+        }
+      }
+    } catch (e){}
+    return DEFAULT_GLOSSARY.map(function(g){ return [g[0], g[1]]; });
+  }
+
+  function saveGlossary(){
+    try { localStorage.setItem(GLOSSARY_KEY, JSON.stringify(glossary)); } catch (e){}
+  }
+
+  // 拼成紧凑的一行塞进提示词：词条多也不会把请求撑太大。
+  function glossaryBlock(){
+    if (!glossary.length) return "";
+    var pairs = glossary.map(function(g){ return g[1] ? (g[0] + "=" + g[1]) : g[0]; }).join("; ");
+    return "\nDJI official terminology (when the Chinese on the left appears, you MUST use the wording on "
+      + "the right instead of a literal translation; for target languages other than English, follow the "
+      + "official English term rather than translating the Chinese literally): " + pairs + "\n";
+  }
+
+  function renderGloss(){
+    var box = el("glossList");
+    box.innerHTML = "";
+    glossary.forEach(function(g, i){
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:6px;margin-bottom:6px";
+      var zi = document.createElement("input");
+      zi.type = "text"; zi.value = g[0]; zi.placeholder = "中文";
+      zi.style.cssText = "flex:1;min-width:0;background:#0e1015;border:1px solid var(--line);"
+        + "color:var(--fg);border-radius:8px;padding:9px;font-size:14px;font-family:inherit";
+      var ei = document.createElement("input");
+      ei.type = "text"; ei.value = g[1]; ei.placeholder = "大疆官方说法";
+      ei.style.cssText = zi.style.cssText;
+      var del = document.createElement("button");
+      del.textContent = "×";
+      del.style.cssText = "flex:none;width:40px;border:1px solid var(--line);background:transparent;"
+        + "color:var(--bad);border-radius:8px;font-size:17px;font-family:inherit";
+      del.onclick = function(){ glossary.splice(i, 1); renderGloss(); };
+      row.appendChild(zi); row.appendChild(ei); row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+
+  function collectGloss(){
+    var rows = el("glossList").querySelectorAll("div");
+    var out = [];
+    for (var i = 0; i < rows.length; i++){
+      var ins = rows[i].querySelectorAll("input");
+      if (ins.length < 2) continue;
+      var zh = ins[0].value.trim(), en = ins[1].value.trim();
+      if (zh) out.push([zh, en]);
+    }
+    return out;
+  }
+
+  el("btnGloss").onclick = function(){
+    renderGloss();
+    el("glossSheet").classList.remove("hide");
+  };
+  el("btnGlossAdd").onclick = function(){
+    glossary = collectGloss();
+    glossary.push(["", ""]);
+    renderGloss();
+    el("glossList").scrollTop = el("glossList").scrollHeight;
+  };
+  el("btnGlossSave").onclick = function(){
+    var kept = collectGloss();
+    glossary = kept.length ? kept : DEFAULT_GLOSSARY.map(function(g){ return [g[0], g[1]]; });
+    saveGlossary();
+    el("glossSheet").classList.add("hide");
+    showToast("📚 术语库已保存，" + glossary.length + " 条 —— 下次翻译就用这些说法", 3500);
+  };
+  el("btnGlossReset").onclick = function(){
+    glossary = DEFAULT_GLOSSARY.map(function(g){ return [g[0], g[1]]; });
+    saveGlossary();
+    renderGloss();
+    setHint("已恢复成我起的默认草稿");
+  };
+  el("btnGlossExport").onclick = function(){
+    try {
+      var blob = new Blob([JSON.stringify(glossary, null, 2)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "dji-glossary.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setHint("已导出 dji-glossary.json —— 可以发给同事");
+    } catch (e){ setHint("导出失败：" + (e && e.message)); }
+  };
+  el("btnGlossImport").onclick = function(){ el("glossFile").click(); };
+  el("glossFile").onchange = function(ev){
+    var f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      try {
+        var arr = JSON.parse(String(fr.result));
+        if (Object.prototype.toString.call(arr) !== "[object Array]") throw new Error("不是词库文件");
+        var kept = arr.filter(function(g){ return g && typeof g[0] === "string" && g[0].trim(); })
+                      .map(function(g){ return [g[0], g[1] || ""]; });
+        if (!kept.length) throw new Error("文件里没有词条");
+        glossary = kept;
+        saveGlossary();
+        renderGloss();
+        setHint("已导入 " + kept.length + " 条词");
+      } catch (e){ setHint("导入失败：" + (e && e.message)); }
+    };
+    fr.readAsText(f, "utf-8");
+    ev.target.value = "";
+  };
+
+  /* ---------- prompt ---------- */
+
+  function buildPrompt(forceLang){
+    var cust = forceLang || customerLang;
+    var target = cust
+      ? ("If the speaker is speaking Chinese, translate into " + (LANG_NAMES[cust] || cust) +
+         ". Otherwise translate into Chinese.")
+      : ("If the speaker is NOT speaking Chinese, translate into Chinese. "
+         + "If the speaker IS speaking Chinese, set \"out\" to the Chinese text itself and set \"target\" to \"zh\".");
+
+    return "You are interpreting live at a DJI (dji) drone store counter between a Chinese salesperson "
+      + "and a foreign customer. Listen to the audio clip and do all of this in one pass:\n"
+      + "1) Detect the spoken language.\n"
+      + "2) Transcribe it verbatim.\n"
+      + "3) Translate it. " + target + "\n"
+      + "Rules: use DJI's real product terminology (gimbal / stabilizer, obstacle sensing, Home Point, "
+      + "D-Log, QuickShots, DJI Care Refresh, Return-to-Home, geofencing). NEVER translate a product name, "
+      + "model name or feature brand literally. If a term has no confirmed equivalent, keep the English word. "
+      + "Sound like a native salesperson, not a machine.\n"
+      + glossaryBlock()
+      + 'Reply with strict JSON only, no markdown: '
+      + '{"lang":"<iso code>","text":"<verbatim>","target":"<iso code>","out":"<translation>"}';
+  }
+
+  function callArk(audioB64, textOnly, forceLang){
+    var content = [{ type: "text", text: buildPrompt(forceLang) }];
+    if (audioB64){
+      content.push({ type: "input_audio", input_audio: { data: audioB64, format: "wav" } });
+    } else {
+      content.push({ type: "text", text: "INPUT TEXT (the Chinese the salesperson wants to say): " + textOnly });
+    }
+    var payload = {
+      model: MODEL,
+      messages: [{ role: "user", content: content }],
+      max_tokens: 500,
+      temperature: 0.2,
+      thinking: { type: "disabled" }
+    };
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 60000);
+    return fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    }).then(function(resp){
+      return resp.text().then(function(t){
+        clearTimeout(timer);
+        if (!resp.ok) throw new Error("HTTP " + resp.status + " " + t.slice(0, 200));
+        var obj = JSON.parse(t);
+        var msg = obj.choices && obj.choices[0] && obj.choices[0].message;
+        var c = (msg && (msg.content || "")) || "";
+        c = c.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+        var m = c.match(/\{[\s\S]*\}/);
+        if (!m) throw new Error("模型没返回 JSON: " + c.slice(0, 160));
+        return JSON.parse(m[0]);
+      });
+    }).catch(function(e){
+      clearTimeout(timer);
+      throw e;
+    });
+  }
+
+  /* ---------- 翻译缓存：同一句话不重复花钱 ---------- */
+  // 话术卡会被反复按，客户的问题也高度重复。同一段原文 + 同一个目标语言，
+  // 直接复用上次的结果，省一次 API 调用（也省一点钱）。
+  var CACHE_KEY = "dji_voice_cache";
+  var CACHE_MAX = 300;
+
+  var cache = (function(){
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e){ return {}; }
+  })();
+
+  function cacheKey(text, lang){ return (lang || "-") + "|" + text; }
+
+  function cacheTrim(){
+    var keys = Object.keys(cache);
+    if (keys.length <= CACHE_MAX) return;
+    keys.slice(0, keys.length - CACHE_MAX).forEach(function(k){ delete cache[k]; });
+  }
+
+  // 文字翻译（话术卡 / 手打）走这里；语音不缓存，因为每段录音都不一样。
+  function translateText(text, forceLang){
+    var lang = forceLang || customerLang || "en";
+    var key = cacheKey(text, lang);
+    if (cache[key]){
+      setHint("⚡ 这句以前翻过，用了缓存，没花 API");
+      return Promise.resolve(cache[key]);
+    }
+    return callArk("", text, lang).then(function(json){
+      if (json && json.out){
+        cache[key] = json;
+        cacheTrim();
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e){}
+      }
+      return json;
+    });
+  }
+
+  /* ---------- speech ---------- */
+
+  // 手机上装了哪些语种的语音包 —— 没装的语种，浏览器会拿默认语音（通常是中文）
+  // 去念，听起来就是中文，必须提前告诉用户，而不是默默念错。
+  function findVoice(tag){
+    var vs = [];
+    try { vs = window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; } catch (e){}
+    var pre = String(tag).toLowerCase().slice(0, 2);
+    for (var i = 0; i < vs.length; i++){
+      var vl = String(vs[i].lang || "").toLowerCase().replace("_", "-");
+      if (vl === String(tag).toLowerCase() || vl.indexOf(pre) === 0) return vs[i];
+    }
+    return null;
+  }
+
+  var ttsAudio = null;
+
+  // 首选：让电脑念（微软的语音，语种全、日语俄语都有，手机上不用装任何东西）。
+  // 电脑连不上、或者浏览器拦了自动播放，就退回手机自带的语音。
+  function speakRemote(text, langCode){
+    var pre = String(langCode || "en").toLowerCase().slice(0, 2);
+    return fetch("tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, lang: pre })
+    }).then(function(r){
+      if (!r.ok) throw new Error("电脑返回 " + r.status);
+      return r.blob();
+    }).then(function(b){
+      if (b.size < 600) throw new Error("电脑没生成出音频");
+      if (ttsAudio){ try { ttsAudio.pause(); } catch (e){} }
+      ttsAudio = new Audio(URL.createObjectURL(b));
+      return ttsAudio.play();
+    });
+  }
+
+  function speak(text, langCode){
+    if (!text) return;
+    if (ttsMode === "pc"){
+      speakRemote(text, langCode).catch(function(err){
+        setHint("电脑语音没用上（" + (err && err.message ? err.message : err) + "），改用手机自带的念");
+        speakLocal(text, langCode);
+      });
+      return;
+    }
+    speakLocal(text, langCode);
+  }
+
+  // 兜底：手机自己念。安卓上很多机型（如荣耀）没有日语/俄语语音包，会念成中文腔。
+  function speakLocal(text, langCode){
+    try {
+      if (!window.speechSynthesis) return;
+      var tag = SPEAK_TAG[langCode] || langCode || "en-US";
+
+      var go = function(){
+        // 关键：即使 getVoices() 里找不到对应语音，也要念 ——
+        // 安卓上 getVoices() 经常返回空列表，但只设 u.lang 系统照样能选对语音。
+        // 之前这里「找不到就不念」，导致英文直接哑掉了。
+        var v = findVoice(tag);
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = tag;
+        if (v) u.voice = v;
+        u.rate = 0.95;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+        if (!v){
+          setHint("已按「" + (LANG_NAMES[langCode] || langCode) + "」念出 —— 如果听着不对，是手机缺这个语音包，右上角「语音自检」能试听");
+        }
+      };
+
+      var vs = speechSynthesis.getVoices() || [];
+      if (!vs.length){
+        // Chrome 上语音列表是异步加载的，第一次调用往往是空的，等一次再念
+        var done = false;
+        var once = function(){ if (done) return; done = true; go(); };
+        speechSynthesis.addEventListener("voiceschanged", once);
+        setTimeout(once, 700);
+      } else {
+        go();
+      }
+    } catch (e){}
+  }
+
+  function pickFrom(vs, tag){
+    var pre = String(tag).toLowerCase().slice(0, 2);
+    for (var i = 0; i < vs.length; i++){
+      var vl = String(vs[i].lang || "").toLowerCase().replace("_", "-");
+      if (vl === String(tag).toLowerCase() || vl.indexOf(pre) === 0) return vs[i];
+    }
+    return null;
+  }
+
+  function safeVoices(){
+    try { return (window.speechSynthesis && speechSynthesis.getVoices()) || []; }
+    catch (e){ return []; }
+  }
+
+  // 安卓 Chrome 上语音列表是异步加载的：页面刚开时 getVoices() 是空的，
+  // 「读不到列表」和「没装这个语音」是两回事，不能都打叉。
+  function withVoices(cb){
+    var vs = safeVoices();
+    if (vs.length) return cb(vs);
+    var done = false;
+    var once = function(){
+      if (done) return;
+      done = true;
+      try { speechSynthesis.removeEventListener("voiceschanged", once); } catch (e){}
+      cb(safeVoices());
+    };
+    try { speechSynthesis.addEventListener("voiceschanged", once); } catch (e){}
+    setTimeout(once, 3000);
+  }
+
+  function voiceReport(vs){
+    var rows = [{ label: "中文", code: "zh" }].concat(CARD_LANGS.map(function(p){
+      return { label: p[1], code: p[0] };
+    }));
+    return rows.map(function(r){
+      var v = pickFrom(vs, SPEAK_TAG[r.code]);
+      return { label: r.label, ok: !!v, name: v ? v.name : "" };
+    });
+  }
+
+  // 网页没有权限安装系统语音包 —— 只能把用户送到系统设置那一步，
+  // 顺手把路径复制好，省得他一层层找。
+  var UA = navigator.userAgent || "";
+  var IS_IOS = /iPad|iPhone|iPod/.test(UA) ||
+               (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var IS_ANDROID = /Android/i.test(UA);
+  var IS_HONOR = /HONOR|Huawei|HarmonyOS|MagicOS/i.test(UA);
+
+  function stepsText(){
+    if (IS_IOS){
+      return "设置 → 辅助功能 → 朗读内容 → 声音 → 选语言 → 下载对应语音";
+    }
+    if (IS_HONOR){
+      // 荣耀/华为国行机一般不带 Google 语音服务，菜单也和原生安卓不一样，
+      // 最稳的是用设置里的搜索框，别按通用路径一层层找。
+      return "【荣耀 MagicOS】打开「设置」→ 顶部搜索框输入「文字转语音」→ 点搜出来的「文字转语音输出」"
+        + " → 点进「首选引擎」→「安装语音数据 / 语音包」→ 下载英语、日语、韩语、西班牙语、俄语、法语。"
+        + "　注：荣耀国行机身通常没有 Google 语音服务，自带引擎的语种可能不全；"
+        + "如果列表里只有中英文，就得另装一个第三方语音引擎（应用市场搜「语音合成」/「讯飞」）。";
+    }
+    if (IS_ANDROID){
+      return "设置 → 系统 → 语言和输入法 → 文字转语音输出 → 点进首选引擎 → 安装语音数据 → 选对应语言";
+    }
+    return "在系统设置里搜索「文字转语音」，安装对应语言的语音包";
+  }
+
+  function copyText(text){
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(
+          function(){ setHint("✅ 已复制，去设置里照着找就行"); },
+          function(){ setHint(text); }
+        );
+        return true;
+      }
+    } catch (e){}
+    setHint(text);
+    return false;
+  }
+
+  // 试听用的样句。
+  // 之前用的是「欢迎光临 DJI」的各种语言版本 —— 用户反馈「听着都一样」，
+  // 因为 DJI 这个词各语言发音本来就相同，而且专有名词很容易被念成同一种腔调。
+  // 改成数数：各国数字的发音差别最大，一耳朵就能听出是不是真的那个语言。
+  var SAMPLES = {
+    zh: "一、二、三、四、五，今天天气很好。",
+    en: "One, two, three, four, five. The weather is nice today.",
+    fr: "Un, deux, trois, quatre, cinq. Il fait beau aujourd'hui.",
+    ja: "いち、に、さん、し、ご。今日はいい天気ですね。",
+    ko: "하나, 둘, 셋, 넷, 다섯. 오늘 날씨가 좋네요.",
+    es: "Uno, dos, tres, cuatro, cinco. Hoy hace buen tiempo.",
+    ru: "Один, два, три, четыре, пять. Сегодня хорошая погода."
+  };
+
+  function renderVoiceSheet(vs){
+    var box = el("voiceList");
+    box.innerHTML = "";
+    var steps = el("voiceSteps");
+    steps.innerHTML = "";
+
+    // 发音来源切换
+    var modeRow = document.createElement("div");
+    modeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:12px";
+    var mlab = document.createElement("span");
+    mlab.textContent = "发音来源";
+    mlab.style.cssText = "flex:none;color:var(--dim);font-size:13px";
+    modeRow.appendChild(mlab);
+    [["phone", "📱 手机"], ["pc", "💻 电脑"]].forEach(function(pair){
+      var b = document.createElement("button");
+      b.textContent = pair[1];
+      b.style.cssText = "flex:1;border-radius:8px;padding:9px;font-size:14px;font-family:inherit;"
+        + (ttsMode === pair[0]
+            ? "background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:600"
+            : "background:transparent;border:1px solid var(--line);color:var(--fg)");
+      b.onclick = function(){
+        ttsMode = pair[0];
+        try { localStorage.setItem(TTS_KEY, ttsMode); } catch (e){}
+        renderVoiceSheet(safeVoices());
+        setHint("发音来源改成：" + (ttsMode === "pc" ? "电脑" : "手机"));
+      };
+      modeRow.appendChild(b);
+    });
+    box.appendChild(modeRow);
+
+    // 安卓浏览器的 getVoices() 经常是空的 —— 所以不靠「读列表」下结论，
+    // 改成让用户直接听。听得出来才是唯一可信的判据。
+    var note = document.createElement("div");
+    note.style.cssText = "font-size:13px;color:#98a2b3;line-height:1.7;margin-bottom:10px";
+    note.textContent = vs.length
+      ? ("手机报告了 " + vs.length + " 个语音。点「试听」核对发音。")
+      : "安卓浏览器常常读不到语音列表，这是它的老毛病，不代表没装。点「试听」听发音最准。";
+    box.appendChild(note);
+
+    var rows = [{ label: "中文", code: "zh" }].concat(CARD_LANGS.map(function(p){
+      return { label: p[1], code: p[0] };
+    }));
+
+    rows.forEach(function(r){
+      var line = document.createElement("div");
+      line.style.cssText = "display:flex;align-items:center;gap:10px;padding:5px 0";
+      var v = vs.length ? pickFrom(vs, SPEAK_TAG[r.code]) : null;
+      var lab = document.createElement("span");
+      lab.style.flex = "1";
+      lab.textContent = r.label + (vs.length ? (v ? "  ✅ " + v.name : "  ❔ 列表里没有") : "");
+      var b = document.createElement("button");
+      b.textContent = "试听";
+      b.style.cssText = "border:1px solid var(--line);background:transparent;color:var(--fg);"
+        + "border-radius:8px;padding:6px 16px;font-size:14px;font-family:inherit";
+      b.onclick = function(){
+        setHint("试听「" + r.label + "」—— 走电脑语音；如果提示「电脑语音没用上」，说明退回手机自带了");
+        speak(SAMPLES[r.code] || SAMPLES.en, r.code);
+      };
+      line.appendChild(lab);
+      line.appendChild(b);
+      box.appendChild(line);
+    });
+
+    var head = document.createElement("div");
+    head.style.cssText = "margin-top:14px;color:#f5a524";
+    head.textContent = "试听听着不对（比如日语像中文），说明缺这个语音包。装法：";
+    steps.appendChild(head);
+    var body = document.createElement("div");
+    body.textContent = stepsText();
+    body.style.marginTop = "4px";
+    body.style.webkitUserSelect = "text";
+    body.style.userSelect = "text";
+    steps.appendChild(body);
+  }
+
+  el("btnVoice").onclick = function(){
+    el("voiceList").textContent = "正在读取手机的语音列表…";
+    el("voiceSteps").innerHTML = "";
+    el("voiceSheet").classList.remove("hide");
+    withVoices(renderVoiceSheet);
+  };
+
+  el("btnCopySteps").onclick = function(){ copyText(stepsText()); };
+
+  el("btnOpenTts").onclick = function(){
+    if (IS_ANDROID){
+      // 试着直接跳到系统的「文字转语音输出」页；浏览器可能拦下，拦下就退回复制
+      var jumped = false;
+      try {
+        var a = document.createElement("a");
+        a.href = "intent:#Intent;action=android.settings.TTS_SETTINGS;end";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        jumped = true;
+      } catch (e){}
+      setHint(jumped ? "如果没跳过去，点「复制设置路径」手动找"
+                     : "跳不过去，用「复制设置路径」手动找");
+    } else {
+      copyText(stepsText());
+      setHint("苹果不允许网页跳设置，路径已复制，去设置里照着找");
+    }
+  };
+
+  // 有些机型（荣耀/华为）不认跳到「文字转语音」的 intent，那就退一步跳系统设置，
+  // 让用户用设置里的搜索框自己找 —— 比让他一层层翻菜单靠谱。
+  function jumpIntent(action, okHint, failHint){
+    try {
+      var a = document.createElement("a");
+      a.href = "intent:#Intent;action=" + action + ";end";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setHint(okHint);
+    } catch (e){
+      setHint(failHint);
+    }
+  }
+
+  el("btnOpenSettings").onclick = function(){
+    if (IS_IOS){ setHint("苹果不允许网页跳设置，用「复制设置路径」手动找"); return; }
+    jumpIntent("android.settings.SETTINGS",
+      "已跳到系统设置 —— 顶部搜索框输入「文字转语音」",
+      "跳不过去，用「复制设置路径」手动找");
+  };
+
+  el("btnVoiceOk").onclick = function(){ el("voiceSheet").classList.add("hide"); };
+
+  /* ---------- render ---------- */
+
+  function render(r, kind){
+    var lang = (r.lang || "").toLowerCase().slice(0, 2);
+    var target = (r.target || "").toLowerCase().slice(0, 2);
+    var outText = r.out || "";
+
+    if (lang && lang !== "zh"){
+      var switched = (lang !== customerLang);
+      setCustomerLang(lang);
+      if (switched){
+        showToast("🔎 检测到客户说的是「" + (LANG_NAMES[lang] || lang) + "」，已按这个语言翻译", 5000);
+      }
+    }
+
+    srcEl.textContent = (r.text || "").trim() || "(没听清)";
+    outEl.textContent = outText || "(没译出来)";
+    outEl.className = "out" + (target === "zh" || lang === "zh" ? " zh" : "");
+
+    if (outText) speak(outText, target || (lang === "zh" ? customerLang : "zh"));
+
+    var it = document.createElement("div");
+    it.className = "it";
+    var tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = kind === "type" ? "手打" : (kind === "card" ? "话术" : (lang || "??"));
+    var l1 = document.createElement("div"); l1.className = "l1";
+    l1.appendChild(tag); l1.appendChild(document.createTextNode(r.text || ""));
+    var l2 = document.createElement("div"); l2.className = "l2"; l2.textContent = outText;
+    it.appendChild(l1); it.appendChild(l2);
+    logEl.insertBefore(it, logEl.firstChild);
+    while (logEl.children.length > 12) logEl.removeChild(logEl.lastChild);
+  }
+
+  function fail(err){
+    setStatus("出错了", "err");
+    setHint(String(err && err.message ? err.message : err).slice(0, 160));
+    srcEl.textContent = String(err && err.message ? err.message : err).slice(0, 200);
+    outEl.textContent = "再试一次";
+  }
+
+  function process(promise){
+    if (busy) return;
+    busy = true;
+    ptt.disabled = true;
+    ptt.classList.add("busy");
+    var t0 = Date.now();
+    promise.then(function(r){
+      render(r.json || r, r.kind);
+      setStatus("完成 " + ((Date.now() - t0) / 1000).toFixed(1) + " 秒", "on");
+      setHint("再说一句 / 或者把屏幕给客户看");
+    }).catch(fail).finally(function(){
+      busy = false;
+      ptt.disabled = false;
+      ptt.classList.remove("busy");
+    });
+  }
+
+  var T0 = Date.now();
+  function handleBlob(blob){
+    process(
+      toWavBase64(blob).then(function(b64){
+        var t1 = Date.now();
+        setStatus("识别翻译中…", "busy");
+        setHint("音频 " + (blob.size / 1024).toFixed(0) + "KB → wav " +
+                (b64.length * 3 / 4 / 1024).toFixed(0) + "KB，转码 " + (t1 - T0) / 1000 + " 秒");
+        return callArk(b64, "").then(function(json){ return { json: json, kind: "voice" }; });
+      })
+    );
+  }
+
+  /* ---------- events ---------- */
+
+  function down(ev){
+    if (busy) return;
+    if (ev) ev.preventDefault();
+    T0 = Date.now();
+    startRec();
+  }
+  function up(ev){
+    if (ev) ev.preventDefault();
+    stopRec();
+  }
+  ptt.addEventListener("pointerdown", down);
+  ptt.addEventListener("pointerup", up);
+  ptt.addEventListener("pointercancel", up);
+  ptt.addEventListener("pointerleave", function(e){ if (recording) up(e); });
+  ptt.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+  document.addEventListener("visibilitychange", function(){
+    if (document.hidden && recording){
+      recording = false;
+      ptt.classList.remove("rec");
+      ptt.textContent = "按住说话";
+      try { recorder.stop(); } catch (e){}
+      setStatus("被打断了，重来", "err");
+    }
+  });
+
+  el("btnTyped").onclick = function(){
+    var v = el("typed").value.trim();
+    if (!v || busy) return;
+    process(translateText(v).then(function(json){ return { json: json, kind: "type" }; }));
+    el("typed").value = "";
+  };
+  el("typed").addEventListener("keydown", function(e){
+    if (e.key === "Enter") el("btnTyped").click();
+  });
+
+  if (window.speechSynthesis){
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = function(){ speechSynthesis.getVoices(); };
+  }
+
+  /* ---------- init ---------- */
+  if (!cardLang) cardLang = customerLang || "en";
+  renderChips();
+  renderGrid();
+  el("panelCards").classList.remove("hide");
+  setCustomerLang(customerLang || "en");     // 顶部显示的值 = 请求里真正用的值
+  setStatus(apiKey ? "准备就绪" : "先填密钥", apiKey ? "" : "err");
+})();
+</script>
+</body>
+</html>
