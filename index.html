@@ -59,6 +59,16 @@
     background:var(--card);border:1px solid var(--line);color:var(--fg);
     border-radius:12px;padding:0 16px;font-size:15px;
   }
+  .typecard{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px;margin-top:12px}
+  .typecard .tc-hd{font-size:15px;font-weight:600;margin-bottom:9px}
+  .typecard .tc-hd span{font-size:12px;color:var(--dim);font-weight:400}
+  .typecard textarea{width:100%;background:#0e1015;border:1px solid var(--line);color:var(--fg);
+    border-radius:10px;padding:11px;font-size:16px;line-height:1.5;resize:vertical;
+    -webkit-user-select:text;user-select:text;font-family:inherit}
+  .typecard > button{width:100%;margin-top:9px;border-radius:11px;padding:13px;
+    border:none;background:var(--accent);color:#fff;font-size:16px;font-weight:600;font-family:inherit}
+  .typecard .tc-hint{font-size:12px;color:var(--dim);line-height:1.6;margin-top:9px}
   .log{margin-top:14px}
   .log .it{
     background:var(--card);border:1px solid var(--line);border-radius:12px;
@@ -150,7 +160,8 @@
     <div class="hd">
       <b>常用话术</b>
       <span class="sp"></span>
-      <button id="btnEdit">编辑话术</button>
+      <button id="btnPre">一键存到手机</button>
+      <button id="btnEdit">编辑</button>
     </div>
 
     <div class="hide" id="panelCards">
@@ -169,13 +180,14 @@
     </div>
   </div>
 
-  <div class="row">
-    <input type="text" id="typed" placeholder="任何语言都能打：中文 / English / 한국어 / 日本語 …" autocomplete="off">
-    <button id="btnTyped">翻译</button>
-  </div>
-  <div class="hint" style="padding:8px 4px 0;line-height:1.6">
-    <b>说不出话、或说不了中文外语的客户</b>？把手机递给他，让他在这一栏用<b>他自己的语言</b>打字
-    （韩语、日语、俄语都行），点「翻译」就出中文。反过来你打中文，也会翻成他的语言。
+  <div class="typecard">
+    <div class="tc-hd">客户打字 <span>—— 说不出来、但看得懂的客户，用这一栏</span></div>
+    <textarea id="typed" rows="2" placeholder="客户用他自己的语言打：Русский · English · 한국어 · Español · Français"></textarea>
+    <button id="btnTyped">翻译成中文</button>
+    <div class="tc-hint">
+      <b>俄语 / 英语 / 韩语 / 西语 / 法语</b>都认，打完点上面那个按钮就出中文。
+      你打中文，也会翻成客户的语言。客户不能说话、店里信号又差的时候，这一栏最靠得住。
+    </div>
   </div>
 
   <div class="hint" id="hint">松手后 2~4 秒出译文</div>
@@ -259,13 +271,19 @@
                     ar:"ar-SA", th:"th-TH" };
   var CARD_LANGS = [["en","英语"],["fr","法语"],["ja","日语"],["ko","韩语"],["es","西语"],["ru","俄语"]];
 
+  var CARD_COUNT = 10;
+
   var DEFAULT_CARDS = [
     "您好，欢迎光临大疆！有什么可以帮您的吗？",
     "这款我给您演示一下，您可以上手试试。",
     "它很轻，操作简单，新手也容易上手。",
     "关于价格和套装内容，我给您详细说明一下。",
     "这款现在有现货，可以马上带走。",
-    "您有任何问题都可以问我，我来帮您解答。"
+    "您有任何问题都可以问我，我来帮您解答。",
+    "您可以先试试，有什么问题随时问我。",
+    "这款支持以旧换新，旧的机器可以折价。",
+    "保修是官方两年，全国联保。",
+    "您想先看哪一款？我帮您拿过来。"
   ];
 
   var el = function(id){ return document.getElementById(id); };
@@ -326,7 +344,7 @@
       var raw = localStorage.getItem(CARDS_KEY);
       if (raw){
         var arr = JSON.parse(raw);
-        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length === 6) return arr;
+        if (Object.prototype.toString.call(arr) === "[object Array]" && arr.length === CARD_COUNT) return arr;
       }
     } catch (e){}
     return DEFAULT_CARDS.slice();
@@ -374,13 +392,61 @@
   function renderGrid(){
     var g = el("grid");
     g.innerHTML = "";
+    var lang = cardLang || customerLang || "en";
     cards.forEach(function(text, i){
       var b = document.createElement("button");
-      b.textContent = text || ("（第 " + (i + 1) + " 条为空）");
+      // 已经存进手机的话术打个勾 —— 按它就不会再联网翻译
+      var cached = !!(text && cache[cacheKey(text.trim(), lang)]);
+      b.textContent = (cached ? "✓ " : "") + (text || ("（第 " + (i + 1) + " 条为空）"));
+      if (cached) b.style.borderColor = "#2ecc71";
       b.onclick = function(){ pressCard(i); };
       g.appendChild(b);
     });
   }
+
+  // 一次性把这 10 条话术都翻好存进手机。之后在门店按卡片就不再联网翻译了 ——
+  // 客户说不清、店里信号差，都不影响你先把话讲出去。
+  function pretranslateAll(){
+    if (busy){ setStatus("上一条还没弄完，稍等", "busy"); return; }
+    var lang = cardLang || customerLang || "en";
+    var todo = cards.map(function(c){ return (c || "").trim(); })
+                    .filter(function(c){ return c && !cache[cacheKey(c, lang)]; });
+    if (!todo.length){
+      showToast("✅ " + CARD_COUNT + " 条话术都已经存在手机里了，按卡片不再联网翻译", 4000);
+      return;
+    }
+    busy = true;
+    ptt.disabled = true;
+    ptt.classList.add("busy");
+    var done = 0;
+    var saveCache = function(){
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e){}
+    };
+    var step = function(){
+      if (done >= todo.length){
+        busy = false;
+        ptt.disabled = false;
+        ptt.classList.remove("busy");
+        renderGrid();
+        setStatus("话术已存好 " + todo.length + " 条", "on");
+        showToast("✅ " + todo.length + " 条话术已存进手机，以后按卡片不用联网翻译", 4500);
+        return;
+      }
+      var txt = todo[done];
+      setStatus("存话术 " + (done + 1) + "/" + todo.length + "…", "busy");
+      callArk("", txt, lang).then(function(json){
+        if (json && json.out) cache[cacheKey(txt, lang)] = json;
+      }).catch(function(e){
+        setHint("有一条没存上：" + (e && e.message ? e.message : e));
+      }).then(function(){
+        saveCache();
+        done++;
+        step();
+      });
+    };
+    step();
+  }
+  el("btnPre").onclick = pretranslateAll;
 
   function pressCard(i){
     // 每一步都给出屏幕反馈 —— 之前按了没动静时，屏幕上什么线索都没有，没法排查。
@@ -429,7 +495,7 @@
 
   el("btnSaveCards").onclick = function(){
     var tas = el("fields").querySelectorAll("textarea");
-    for (var i = 0; i < tas.length && i < 6; i++){
+    for (var i = 0; i < tas.length && i < CARD_COUNT; i++){
       cards[i] = tas[i].value.trim() || DEFAULT_CARDS[i];
     }
     saveCards();
@@ -1156,6 +1222,7 @@
     var t0 = Date.now();
     promise.then(function(r){
       render(r.json || r, r.kind);
+      renderGrid();          // 刚翻过的卡片会显示 ✓，表示已存进手机
       setStatus("完成 " + ((Date.now() - t0) / 1000).toFixed(1) + " 秒", "on");
       setHint("再说一句 / 或者把屏幕给客户看");
     }).catch(fail).finally(function(){
@@ -1213,7 +1280,8 @@
     el("typed").value = "";
   };
   el("typed").addEventListener("keydown", function(e){
-    if (e.key === "Enter") el("btnTyped").click();
+    // 客户打字时按回车就翻（Shift+回车是换行）
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); el("btnTyped").click(); }
   });
 
   if (window.speechSynthesis){
