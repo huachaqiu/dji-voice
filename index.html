@@ -822,7 +822,14 @@
     }
   }
 
-  function beginCapture(){
+  function beginCapture(attempt){
+    attempt = attempt || 1;
+    // 麦克风是独占资源：上一次的流只要没关干净，这一次就会报 NotReadableError。
+    // 开始前先把可能残留的那条关掉，再申请。
+    if (stream) {
+      try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (e){}
+      stream = null;
+    }
     navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
     }).then(function(s){
@@ -848,10 +855,18 @@
       setStatus("正在听…", "busy");
       setHint("说完再松手");
     }).catch(function(err){
+      // NotReadableError = 麦克风被别的进程占着、或底层还没准备好。
+      // 这种情况等一下重试往往就通了，先自动重试，别一上来就把
+      // "没权限"的面板丢给用户 —— 那会把人带偏（已经带偏过一次了）。
+      if (attempt < 2 && err && err.name === "NotReadableError"){
+        setStatus("麦克风被占用，正在重试…", "busy");
+        setTimeout(function(){ beginCapture(attempt + 1); }, 600);
+        return;
+      }
       setStatus("麦克风打不开", "err");
       setHint(String(err && err.name) + " —— 看下面的诊断信息");
       if (window.AndroidMic){
-        micDiag("getUserMedia 被拒", err);
+        micDiag("getUserMedia 失败", err);
         el("micSheet").classList.remove("hide");
       }
     });
