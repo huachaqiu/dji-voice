@@ -409,6 +409,21 @@
   </div>
 </div>
 
+<div class="sheet hide" id="micSheet">
+  <div class="in">
+    <h3>需要麦克风权限</h3>
+    <p>这个应用要靠麦克风听客户说话。权限被拒绝了，得手动打开一次。</p>
+    <p style="font-size:13px;color:var(--dim);line-height:1.9">
+      点下面的「<b>打开设置</b>」会跳到本应用的设置页：<br>
+      找到「<b>权限</b>」→「<b>麦克风</b>」→ 选「<b>允许</b>」，然后返回即可。
+    </p>
+    <div class="act">
+      <button id="btnMicLater">以后再说</button>
+      <button class="p" id="btnMicSettings">打开设置</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -513,6 +528,12 @@
 
   // 没有密钥 = 第一次用，先把说明书顶上来（里面写了怎么申请）
   if (!apiKey) setTimeout(function(){ el("helpSheet").classList.remove("hide"); }, 400);
+
+  el("btnMicSettings").onclick = function(){
+    try { window.AndroidMic.openAppSettings(); } catch (e){}
+    el("micSheet").classList.add("hide");
+  };
+  el("btnMicLater").onclick = function(){ el("micSheet").classList.add("hide"); };
 
   /* ---------- 常用话术卡 ---------- */
 
@@ -737,10 +758,53 @@
     return "";
   }
 
+  // 安卓 APK 壳里，网页自己申请不了麦克风 —— 必须由外壳去弹系统权限框。
+  // 所以每次要用之前先问一次：给了就录，没给就把人送到系统设置页。
+  // 只在启动时问一次是不够的：用户如果当时点掉了那个框，系统就再也不弹了。
+  function ensureMic(cb){
+    if (!window.AndroidMic || !window.AndroidMic.hasMic){ cb(true); return; }  // 浏览器环境
+    if (window.AndroidMic.hasMic()){ cb(true); return; }
+
+    setStatus("正在申请麦克风权限…", "busy");
+    setHint("手机上会弹一个权限框，请点「允许」");
+
+    var settled = false;
+    window.__onMicPermission = function(ok){
+      if (settled) return;
+      settled = true;
+      window.__onMicPermission = null;
+      cb(!!ok);
+    };
+    try { window.AndroidMic.requestMic(); } catch (e){}
+    setTimeout(function(){
+      if (settled) return;
+      settled = true;
+      window.__onMicPermission = null;
+      try { cb(!!window.AndroidMic.hasMic()); } catch (e){ cb(false); }
+    }, 60000);
+  }
+
   function startRec(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       setStatus("这个浏览器不支持麦克风", "err"); return;
     }
+    ensureMic(function(ok){
+      if (!ok){ onMicBlocked(); return; }
+      beginCapture();
+    });
+  }
+
+  function onMicBlocked(){
+    setStatus("麦克风权限被拒绝了", "err");
+    if (window.AndroidMic && window.AndroidMic.openAppSettings){
+      setHint("按下面提示去设置里打开麦克风权限");
+      el("micSheet").classList.remove("hide");
+    } else {
+      setHint("点地址栏左边的锁图标 → 把「麦克风」改成「允许」→ 刷新页面");
+    }
+  }
+
+  function beginCapture(){
     navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
     }).then(function(s){
@@ -767,7 +831,9 @@
       setHint("说完再松手");
     }).catch(function(err){
       setStatus("麦克风打不开", "err");
-      setHint(String(err && err.name) + " —— 检查浏览器麦克风权限");
+      setHint(String(err && err.name) + " —— " +
+        (window.AndroidMic ? "去手机设置里检查本应用的麦克风权限" : "检查浏览器麦克风权限"));
+      if (window.AndroidMic) el("micSheet").classList.remove("hide");
     });
   }
 
