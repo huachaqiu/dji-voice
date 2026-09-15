@@ -22,7 +22,7 @@
     -webkit-user-select:none; user-select:none;
   }
   .wrap{max-width:640px;margin:0 auto;padding-top:10px}
-  .bar{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px;margin-bottom:8px}
+  .bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--dim);font-size:13px;margin-bottom:8px}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
   .dot.on{background:var(--ok)} .dot.err{background:var(--bad)} .dot.busy{background:var(--warn)}
   .bar b{color:var(--fg);font-weight:600}
@@ -132,6 +132,24 @@
   .sheet .act button{flex:1;border-radius:12px;padding:13px;font-size:16px;border:1px solid var(--line);
     background:transparent;color:var(--fg)}
   .sheet .act button.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+  /* 使用说明：整屏可滚，字体按手机阅读调过 */
+  .helpin{max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    -webkit-user-select:text;user-select:text}
+  .helpin h3{margin:0 0 6px;font-size:17px}
+  .helpin h4{font-size:15px;margin:20px 0 8px;padding-left:9px;border-left:3px solid var(--accent)}
+  .helpin h4:first-of-type{margin-top:12px}
+  .helpin p{margin:0 0 10px;font-size:14px;line-height:1.7}
+  .helpin ol,.helpin ul{margin:0 0 10px;padding-left:22px;font-size:14px;line-height:1.9}
+  .helpin li{margin-bottom:5px}
+  .helpin b{color:#fff}
+  .helpin code{background:#0e1015;border:1px solid var(--line);border-radius:5px;
+    padding:1px 5px;font-size:13px;word-break:break-all}
+  .helpin .tip{background:rgba(47,109,246,.12);border:1px solid var(--accent);
+    border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.75;color:#cfe0ff}
+  .helpin .warn{background:rgba(245,165,36,.12);border:1px solid var(--warn);
+    border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.75;color:#ffd79a}
+
   .hide{display:none}
 </style>
 </head>
@@ -144,6 +162,7 @@
     <b id="stat">准备就绪</b>
     <span class="sp"></span>
     <span id="langtag" style="color:var(--dim)"></span>
+    <button id="btnHelp">说明</button>
     <button id="btnGloss">词库</button>
     <button id="btnVoice">语音</button>
     <button id="btnKey">密钥</button>
@@ -203,8 +222,11 @@
 <div class="sheet hide" id="sheet">
   <div class="in">
     <h3>填入火山方舟 API Key</h3>
-    <p>只存在这台手机的浏览器里，不会写进网页。换手机要重新填一次。</p>
+    <p>只存在这台手机的浏览器里，不会写进网页。换手机要重新填一次。
+      还不知道去哪申请？先看「说明」。</p>
     <input type="password" id="keyInput" placeholder="ark-..." autocomplete="off">
+    <p style="margin-top:14px;margin-bottom:6px">模型 ID（<b>一般不用改</b>，只有报 404 时才需要动）</p>
+    <input type="text" id="modelInput" placeholder="doubao-seed-2-0-mini-260428" autocomplete="off">
     <div class="act">
       <button id="btnCancel">取消</button>
       <button class="p" id="btnSave">保存</button>
@@ -251,6 +273,71 @@
   </div>
 </div>
 
+<div class="sheet hide" id="helpSheet">
+  <div class="in helpin">
+    <h3>使用说明</h3>
+
+    <h4>第一次用：先申请一个密钥（约 10 分钟，一辈子只做一次）</h4>
+    <p>这个 App 自己不会翻译，它是调用「火山方舟」的大模型来翻的。
+      所以每个人要用<b>自己的密钥</b> —— 密钥只存在你自己手机里，花的也是你自己的额度，
+      跟同事互不影响。</p>
+    <ol>
+      <li>打开 <code>console.volcengine.com/ark</code>（手机、电脑都行）</li>
+      <li>用<b>手机号</b>注册登录火山引擎<br>
+        <span style="color:var(--dim);font-size:13px">⚠️ 别用邮箱注册 —— 邮箱注册的账号可能没有豆包权限</span></li>
+      <li>做<b>实名认证</b>（选「个人认证」，拍身份证正反面）<br>
+        <span style="color:var(--dim);font-size:13px">⚠️ 这一步不能跳，不认证就创建不了密钥</span></li>
+      <li>进控制台后，左侧菜单点「<b>API 密钥管理</b>」→ 点「<b>创建 API Key</b>」</li>
+      <li>创建出来那串（<code>ark-</code> 开头）<b>只显示这一次</b>，
+        关掉或刷新页面就再也看不到了 —— <b>立刻复制</b></li>
+      <li>回到本页面，点右上角「<b>密钥</b>」，把那串粘进去，保存</li>
+    </ol>
+    <p class="tip"><b>要花钱吗？</b>新账号自带<b>免费额度</b>（大约 50 万 token），够用很久。
+      一次对话大约 300 个 token，就算一天用 50 次，一个月也就几块钱。<br>
+      开通时建议勾上「<b>安心体验</b>」—— 额度用完就停，不会自动扣钱。</p>
+
+    <h4>平时怎么用</h4>
+
+    <p><b>① 跟客户说话（语音）</b><br>
+      按住下面蓝色的大按钮，说完松手。1~3 秒后屏幕上出大字译文，手机也会念出来。<br>
+      客户说外语 → 出中文给你看；你说中文 → 念成客户的语言给他听。<br>
+      <span style="color:var(--warn)">⚠️ 让客户先说第一句</span> —— App 得先听到客户说什么语言，
+      才知道该把你的中文翻成什么。</p>
+
+    <p><b>② 快捷话术</b><br>
+      常用的十句话，点一下就替你说出去。<br>
+      点「<b>一键存到手机</b>」，把它一次翻好存在本机，以后按卡片<b>完全不用联网</b>，秒出。
+      存过的卡片会打<b style="color:var(--ok)">绿勾</b>。<br>
+      <span style="color:var(--dim);font-size:13px">注意：存的是当前选中的那个语言。客户常说的每种语言，各按一次。</span></p>
+
+    <p><b>③ 客户打字（客户说不了话的时候）</b><br>
+      把手机递给他，让他在「客户打字」那一栏用<b>他自己的语言</b>打字 ——
+      俄语、英语、韩语、西语、法语都认。打完按回车就出中文。<br>
+      反过来你打中文，也会翻成客户的语言。</p>
+
+    <p><b>④ 改成本店的说法</b><br>
+      右上角「<b>词库</b>」：改大疆术语的官方译法（比如「随心换」→ DJI Care Refresh）。<br>
+      话术区「<b>编辑</b>」：改那十条常用话。</p>
+
+    <h4>遇到问题怎么办</h4>
+    <p><b>没声音 / 念出来是中文腔？</b><br>
+      点右上角「<b>语音</b>」，每个语种点一次「试听」。听着像那个语言就没事；
+      听着像中文，说明手机缺那个语言的语音包。装法：<br>
+      安卓：设置 → 顶部搜索框输「文字转语音」→ 点进去 → 安装语音数据<br>
+      荣耀/华为：同上，但注意国行机身可能没有 Google 语音服务，语种可能不全</p>
+    <p><b>提示 HTTP 401 / 密钥不对？</b><br>
+      密钥填错了或没保存。点右上角「密钥」重新粘贴（注意别带空格）。</p>
+    <p><b>提示 404 / ModelNotFound？</b><br>
+      你账号里还没开通这个模型。去方舟控制台的「开通管理」里，
+      把 <code>doubao-seed-2-0-mini</code> 开通一下。</p>
+    <p><b>能离线用吗？</b><br>
+      翻译不能（要联网调大模型）。但话术卡「一键存到手机」之后，
+      那几条不联网也能念出来。</p>
+
+    <div class="act"><button class="p" id="btnHelpOk">知道了</button></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -258,6 +345,7 @@
   var API = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
   var MODEL = "doubao-seed-2-0-mini-260428";
   var KEY_STORE = "dji_voice_key";
+  var MODEL_KEY = "dji_voice_model";
   var CARDS_KEY = "dji_voice_cards";
   var CARDLANG_KEY = "dji_voice_cardlang";
   var CUSTLANG_KEY = "dji_voice_custlang";
@@ -304,6 +392,9 @@
   }
 
   var apiKey = localStorage.getItem(KEY_STORE) || "";
+  // 模型 ID 允许用户自己改 —— 别人的方舟账号里模型名可能不一样，
+  // 报 404 ModelNotFound 时就是改这里，不用重新发一版网页。
+  var modelId = localStorage.getItem(MODEL_KEY) || MODEL;
 
   // 客户说什么语言。这个值决定了「你说的中文要翻成什么语言」。
   // 如果留空，模型不知道该翻成什么，就会把中文原样吐回来 —— 表现就是「中文进、中文出」。
@@ -327,6 +418,7 @@
 
   function showKeySheet(){
     keyInput.value = apiKey;
+    el("modelInput").value = modelId;
     sheet.classList.remove("hide");
     keyInput.focus();
   }
@@ -334,11 +426,22 @@
   el("btnCancel").onclick = function(){ sheet.classList.add("hide"); };
   el("btnSave").onclick = function(){
     apiKey = keyInput.value.trim();
+    modelId = el("modelInput").value.trim() || MODEL;
     localStorage.setItem(KEY_STORE, apiKey);
+    localStorage.setItem(MODEL_KEY, modelId);
     sheet.classList.add("hide");
     setStatus(apiKey ? "密钥已保存" : "还没填密钥", apiKey ? "" : "err");
   };
-  if (!apiKey) setTimeout(showKeySheet, 400);
+
+  el("btnHelp").onclick = function(){ el("helpSheet").classList.remove("hide"); };
+  el("btnHelpOk").onclick = function(){
+    el("helpSheet").classList.add("hide");
+    // 第一次用：看完说明直接跳到填密钥，省得自己找
+    if (!apiKey) setTimeout(showKeySheet, 250);
+  };
+
+  // 没有密钥 = 第一次用，先把说明书顶上来（里面写了怎么申请）
+  if (!apiKey) setTimeout(function(){ el("helpSheet").classList.remove("hide"); }, 400);
 
   /* ---------- 常用话术卡 ---------- */
 
@@ -838,7 +941,7 @@
       content.push({ type: "text", text: "INPUT TEXT (the Chinese the salesperson wants to say): " + textOnly });
     }
     var payload = {
-      model: MODEL,
+      model: modelId,
       messages: [{ role: "user", content: content }],
       max_tokens: 500,
       temperature: 0.2,
