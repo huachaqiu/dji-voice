@@ -133,9 +133,12 @@
     background:transparent;color:var(--fg)}
   .sheet .act button.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 
-  /* 使用说明：整屏可滚，字体按手机阅读调过 */
+  /* 使用说明：分标签页显示，一次只看一节 —— 一整条长文在手机上翻起来太难受 */
   .helpin{max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
     -webkit-user-select:text;user-select:text}
+  .helpin .chips{margin-bottom:14px;padding-bottom:2px}
+  .hpane{display:none}
+  .hpane.on{display:block}
   .helpin h3{margin:0 0 6px;font-size:17px}
   .helpin h4{font-size:15px;margin:20px 0 8px;padding-left:9px;border-left:3px solid var(--accent)}
   .helpin h4:first-of-type{margin-top:12px}
@@ -318,8 +321,11 @@
 <div class="sheet hide" id="helpSheet">
   <div class="in helpin">
     <h3>使用说明</h3>
+    <div class="chips" id="helpTabs"></div>
+    <div id="helpPanes">
 
-    <h4>一、首次使用：配置 API 密钥（约 10 分钟，只需做一次）</h4>
+    <div class="hpane on" data-tab="key">
+    <h4>配置 API 密钥（约 10 分钟，只需做一次）</h4>
     <p>本应用自身不提供翻译能力，翻译由「火山方舟」的大模型完成。
       每位使用者需要配置自己的密钥 —— 密钥仅保存在本机，
       调用产生的费用计入各自账号，相互独立。</p>
@@ -338,7 +344,10 @@
       新账号自带约 50 万 token 免费额度，够跑 800 多次对话。
       开通时建议勾选「<b>安心体验</b>」，额度用尽后自动停止，不会产生额外扣费。</p>
 
-    <p><b>▸ 还要开通「mini 模型」，程序才能用</b></p>
+    </div>
+    <div class="hpane" data-tab="model">
+
+    <h4>还要开通「mini 模型」，程序才能用</h4>
     <p>本程序调用的是 <b>Doubao-Seed-2.0-mini</b> —— 豆包 Seed 2.0 系列里<b>最便宜的一档</b>。
       上面那句「10 元约 3.8 万次」就是按它算的。<br>
       只创建密钥还不够，<b>得先在控制台把这个模型开通</b>，否则调用会返回 404。</p>
@@ -362,7 +371,10 @@
       只有一种情况需要改：你控制台上显示的后缀日期和上面不一样（模型会更新版本），
       这时候点右上角「<b>密钥</b>」，把「模型 ID」改成你看到的那个就行。</p>
 
-    <h4>二、日常使用</h4>
+    </div>
+    <div class="hpane" data-tab="use">
+
+    <h4>日常使用</h4>
 
     <p><b>① 语音对话</b><br>
       按住下方蓝色按钮说话，松开后约 1~3 秒显示译文并朗读。<br>
@@ -386,7 +398,10 @@
       右上角「<b>词库</b>」：修改大疆术语的官方译法（如「随心换」→ DJI Care Refresh）。<br>
       话术区「<b>编辑</b>」：修改十条常用话术。</p>
 
-    <h4>三、日语、俄语读成中文腔：需安装语音包</h4>
+    </div>
+    <div class="hpane" data-tab="voice">
+
+    <h4>日语、俄语读成中文腔？需装语音包</h4>
     <p>荣耀、华为等机型自带的语音引擎（如「荣耀 AI 语音引擎」）<b>仅支持中英文</b>，
       不含日语与俄语，这两门语言会以中文发音读出。</p>
     <p><b>解决方法：改用 Google 语音引擎并安装对应语音包</b></p>
@@ -403,7 +418,10 @@
       若仍为中文读音，说明语音包未安装成功。<br>
       即使无法安装，也不影响主要功能 —— 译文仍会以大字显示，可直接出示给客户阅读。</p>
 
-    <h4>四、常见问题</h4>
+    </div>
+    <div class="hpane" data-tab="faq">
+
+    <h4>常见问题</h4>
 
     <p><b>页面持续加载或显示空白</b><br>
       一般为网络问题。请刷新页面，或切换网络（流量与 Wi-Fi 互换）后重试。</p>
@@ -445,6 +463,9 @@
     <p><b>如何添加到主屏幕</b><br>
       用 Chrome 打开本页，点右上角菜单，选择「<b>添加到主屏幕</b>」。
       之后可直接从桌面图标进入，无需每次输入网址。</p>
+
+    </div><!-- /faq -->
+    </div><!-- /helpPanes -->
 
     <div class="act"><button class="p" id="btnHelpOk">知道了</button></div>
   </div>
@@ -752,7 +773,42 @@
       });
   };
 
-  el("btnHelp").onclick = function(){ el("helpSheet").classList.remove("hide"); };
+  // 说明书分标签页：一次只看一节。原来是一整条长文，手机上要滑很久才到底。
+  var HELP_TABS = [
+    ["key",   "申请密钥"],
+    ["model", "开通模型"],
+    ["use",   "怎么用"],
+    ["voice", "语音包"],
+    ["faq",   "常见问题"]
+  ];
+
+  function renderHelpTabs(active){
+    var box = el("helpTabs");
+    box.innerHTML = "";
+    HELP_TABS.forEach(function(t){
+      var b = document.createElement("button");
+      b.textContent = t[1];
+      if (t[0] === active) b.className = "sel";
+      b.onclick = function(){ showHelpTab(t[0]); };
+      box.appendChild(b);
+    });
+  }
+
+  function showHelpTab(id){
+    var panes = el("helpPanes").children;
+    for (var i = 0; i < panes.length; i++){
+      var on = panes[i].getAttribute("data-tab") === id;
+      panes[i].className = "hpane" + (on ? " on" : "");
+    }
+    renderHelpTabs(id);
+    // 换页之后回到顶部，否则会停在上一条的滚动位置
+    try { el("helpSheet").querySelector(".in").scrollTop = 0; } catch (e){}
+  }
+
+  el("btnHelp").onclick = function(){
+    showHelpTab("key");
+    el("helpSheet").classList.remove("hide");
+  };
   el("btnHelpOk").onclick = function(){
     el("helpSheet").classList.add("hide");
     // 第一次用：看完说明直接跳到填密钥，省得自己找
@@ -760,7 +816,7 @@
   };
 
   // 没有密钥 = 第一次用，先把说明书顶上来（里面写了怎么申请）
-  if (!apiKey) setTimeout(function(){ el("helpSheet").classList.remove("hide"); }, 400);
+  if (!apiKey) setTimeout(function(){ showHelpTab("key"); el("helpSheet").classList.remove("hide"); }, 400);
 
   el("btnMicSettings").onclick = function(){
     try { window.AndroidMic.openAppSettings(); } catch (e){}
