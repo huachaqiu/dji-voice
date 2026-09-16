@@ -37,7 +37,7 @@
     display:flex;flex-direction:column;justify-content:center;
   }
   .big .src{font-size:17px;color:var(--dim);margin-bottom:12px;word-break:break-word}
-  .big .out{font-size:32px;line-height:1.3;font-weight:600;word-break:break-word}
+  .big .out{font-size:32px;line-height:1.3;font-weight:600;word-break:break-word;cursor:pointer}
   .big .out.zh{font-size:28px}
   .hint{font-size:14px;color:var(--dim);text-align:center;padding:12px 0}
   .ptt{
@@ -380,7 +380,8 @@
       按住下方蓝色按钮说话，松开后约 1~3 秒显示译文并朗读。<br>
       客户说外语时显示中文译文；你说中文时朗读为客户的语言。<br>
       <span class="warn">请让客户先说第一句</span> —— 应用需要先识别出客户使用的语言，
-      才能确定你的中文应译为哪一种。</p>
+      才能确定你的中文应译为哪一种。<br>
+      客户没听清时，<b>点一下大字译文可以再念一遍</b>。</p>
 
     <p><b>② 快捷话术</b><br>
       常用的十句话，点击即可播放对应译文。<br>
@@ -440,6 +441,12 @@
     <p><b>说话后长时间没有译文</b><br>
       录制时间过短（按住多说一两秒再松开），或网络较慢
       （状态栏会显示当前进度）。</p>
+
+    <p><b>译文出来了，但没有朗读出声</b><br>
+      手机浏览器的语音引擎偶尔会被卡住，刚打开页面的头一次尤其容易中招
+      （日语、俄语这类要临时切换语种的句子最常见）。<br>
+      程序会自动重试一次；若仍然无声，<b>点一下大字译文</b>即可重念。
+      反复出现时，关掉页面重新打开即可恢复。</p>
 
     <p><b>客户的话识别不准</b><br>
       环境噪音较大时会出现。建议靠近手机，或把手机放在双方之间的桌面上，
@@ -1506,8 +1513,12 @@
     });
   }
 
+  // 最近一次念过的内容 —— 点译文可以重念，也是引擎吞句之后的补救入口。
+  var lastSpoken = null;
+
   function speak(text, langCode){
     if (!text) return;
+    lastSpoken = { text: text, lang: langCode };
     if (ttsMode === "pc"){
       speakRemote(text, langCode).catch(function(err){
         setHint("电脑语音没用上（" + (err && err.message ? err.message : err) + "），改用手机自带的念");
@@ -1532,34 +1543,97 @@
       if (!window.speechSynthesis) return;
       var tag = SPEAK_TAG[langCode] || langCode || "en-US";
 
-      var go = function(){
-        // 关键：即使 getVoices() 里找不到对应语音，也要念 ——
-        // 安卓上 getVoices() 经常返回空列表，但只设 u.lang 系统照样能选对语音。
-        // 之前这里「找不到就不念」，导致英文直接哑掉了。
-        var v = findVoice(tag);
-        var u = new SpeechSynthesisUtterance(text);
-        u.lang = tag;
-        if (v) u.voice = v;
-        u.rate = 0.95;
-        speechSynthesis.cancel();
-        speechSynthesis.speak(u);
-        if (!v){
-          setHint("已按「" + (LANG_NAMES[langCode] || langCode) + "」念出 —— 如果听着不对，是手机缺这个语音包，右上角「语音自检」能试听");
-        }
-      };
-
       var vs = speechSynthesis.getVoices() || [];
       if (!vs.length){
         // Chrome 上语音列表是异步加载的，第一次调用往往是空的，等一次再念
         var done = false;
-        var once = function(){ if (done) return; done = true; go(); };
+        var once = function(){ if (done) return; done = true; sayIt(text, tag, langCode, 0); };
         speechSynthesis.addEventListener("voiceschanged", once);
         setTimeout(once, 700);
       } else {
-        go();
+        sayIt(text, tag, langCode, 0);
       }
     } catch (e){}
   }
+
+  // 每次开口留一份状态：引擎到底有没有真的开始念。
+  // 重试会顶掉上一份，所以迟到的 onstart 不会把重试的结果覆盖掉。
+  var ttsState = null;
+
+  // 真正开口。关键教训：Chrome 安卓上语音引擎会**静默吞句** ——
+  // 没有 onstart、没有 onerror、控制台什么都没有，用户看到的就是
+  // 「译文出来了，但一声不响」（日语、俄语这种要临时切语种的句子尤其容易中招）。
+  // 所以发完不能就算数：盯着 onstart，超时没响就原样重来一次，两次都没响才给提示。
+  function sayIt(text, tag, langCode, attempt){
+    var u;
+    try { u = new SpeechSynthesisUtterance(text); } catch (e){ return; }
+    var st = { started: false };
+    ttsState = st;
+
+    u.lang = tag;
+    // 即使 getVoices() 里找不到对应语音也要念：安卓上这个列表经常不靠谱，
+    // 只设 u.lang 系统照样能选对语音。（以前这里「找不到就不念」，英文直接哑了。）
+    var v = findVoice(tag);
+    if (v) u.voice = v;
+    u.rate = 0.95;
+    u.onstart = function(){ st.started = true; };
+    u.onerror = function(){ st.started = true; };     // 报错也算有响应，不再重试
+
+    var fire = function(){
+      try { speechSynthesis.resume(); } catch (e){}   // 引擎偶尔卡在 paused，先推一把
+      try { speechSynthesis.speak(u); } catch (e){}
+    };
+
+    // 上一句还在念就先掐掉。**cancel() 之后不能立刻 speak()** ——
+    // 安卓 Chrome 上这两句挨着调用，新句子会被还没收尾的 cancel 一起清掉，
+    // 而且不留任何痕迹。隔一拍再说就没事。
+    if (speechSynthesis.speaking || speechSynthesis.pending){
+      try { speechSynthesis.cancel(); } catch (e){}
+      setTimeout(fire, 120);
+    } else {
+      fire();
+    }
+
+    setTimeout(function(){
+      if (ttsState !== st) return;                    // 已经换成更新的一次了，这份作废
+      if (st.started) return;                         // 念出来了
+      if (attempt === 0){
+        sayIt(text, tag, langCode, 1);                // 被吞了，隔一拍原样再来一次
+        return;
+      }
+      setHint("手机没念出来（Chrome 偶尔会把语音引擎卡住）。"
+        + "点一下译文可以再念一次，或者把页面重新打开。");
+    }, 1500);
+  }
+
+  // Chrome 安卓的语音引擎是懒绑定的：页面刚打开时它还没连上，
+  // 这时候第一句 speak() 很容易被吞掉 —— 现象就是「刚打开页面第一次翻译没声音，
+  // 重新打开又好了」。所以用户一按下按钮，就先用一句听不见的话把引擎叫醒；
+  // 等 1~3 秒后译文回来时，引擎早就位了。
+  var ttsWarmed = false;
+  function ttsWarm(){
+    if (ttsWarmed) return;
+    ttsWarmed = true;
+    try {
+      if (!window.speechSynthesis || window.AndroidTTS) return;
+      speechSynthesis.getVoices();
+      var u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      u.lang = "en-US";
+      speechSynthesis.speak(u);
+    } catch (e){}
+  }
+  ["pointerdown", "touchstart", "click"].forEach(function(name){
+    try { document.addEventListener(name, ttsWarm, { once: true, passive: true }); } catch (e){}
+  });
+
+  // 「没听见，再念一遍」—— 门店里这是刚需（客户没听清，或者刚才引擎抽风没出声）。
+  // 放在点击里念还有个好处：点一下是明确的用户手势，Chrome 不会拦。
+  outEl.onclick = function(){
+    if (!lastSpoken) return;
+    setHint("再念一遍…");
+    speakLocal(lastSpoken.text, lastSpoken.lang);
+  };
 
   function pickFrom(vs, tag){
     var pre = String(tag).toLowerCase().slice(0, 2);
